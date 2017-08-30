@@ -15,15 +15,7 @@
  */
 package com.alibaba.druid.sql.parser;
 
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
-
-import com.alibaba.druid.sql.ast.SQLExpr;
-import com.alibaba.druid.sql.ast.SQLHint;
-import com.alibaba.druid.sql.ast.SQLName;
-import com.alibaba.druid.sql.ast.SQLObject;
-import com.alibaba.druid.sql.ast.SQLStatement;
+import com.alibaba.druid.sql.ast.*;
 import com.alibaba.druid.sql.ast.expr.SQLCharExpr;
 import com.alibaba.druid.sql.ast.expr.SQLIdentifierExpr;
 import com.alibaba.druid.sql.ast.expr.SQLQueryExpr;
@@ -31,10 +23,11 @@ import com.alibaba.druid.sql.ast.expr.SQLVariantRefExpr;
 import com.alibaba.druid.sql.ast.statement.*;
 import com.alibaba.druid.sql.ast.statement.SQLCreateTriggerStatement.TriggerEvent;
 import com.alibaba.druid.sql.ast.statement.SQLCreateTriggerStatement.TriggerType;
-import com.alibaba.druid.sql.dialect.mysql.ast.clause.MySqlRepeatStatement;
 import com.alibaba.druid.sql.dialect.oracle.parser.OracleExprParser;
 import com.alibaba.druid.util.JdbcConstants;
-import com.alibaba.druid.util.JdbcUtils;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class SQLStatementParser extends SQLParser {
 
@@ -2551,88 +2544,103 @@ public class SQLStatementParser extends SQLParser {
         accept(Token.ON);
         stmt.setOn(exprParser.expr());
 
-        boolean insertFlag = false;
+        boolean matched = false;
+        boolean notMatched = false;
+
         if (lexer.token() == Token.WHEN) {
             lexer.nextToken();
             if (lexer.token() == Token.MATCHED) {
-                SQLMergeStatement.MergeUpdateClause updateClause = new SQLMergeStatement.MergeUpdateClause();
+                matched = true;
                 lexer.nextToken();
-                accept(Token.THEN);
-                accept(Token.UPDATE);
-                accept(Token.SET);
-
-                for (;;) {
-                    SQLUpdateSetItem item = this.exprParser.parseUpdateSetItem();
-
-                    updateClause.addItem(item);
-                    item.setParent(updateClause);
-
-                    if (lexer.token() == (Token.COMMA)) {
-                        lexer.nextToken();
-                        continue;
-                    }
-
-                    break;
-                }
-
-                if (lexer.token() == Token.WHERE) {
-                    lexer.nextToken();
-                    updateClause.setWhere(exprParser.expr());
-                }
-
-                if (lexer.token() == Token.DELETE) {
-                    lexer.nextToken();
-                    accept(Token.WHERE);
-                    updateClause.setWhere(exprParser.expr());
-                }
-
-                stmt.setUpdateClause(updateClause);
+                stmt.setUpdateClause(parseUpdateClause());
             } else if (lexer.token() == Token.NOT) {
                 lexer.nextToken();
-                insertFlag = true;
+                accept(Token.MATCHED);
+                notMatched = true;
+                stmt.setInsertClause(parseInsertClause());
             }
         }
 
-        if (!insertFlag) {
-            if (lexer.token() == Token.WHEN) {
+        if (lexer.token() == Token.WHEN) {
+            lexer.nextToken();
+            if (lexer.token() == Token.MATCHED) {
+                if (matched) {
+                    throw new ParserException("TODO " + lexer.token());
+                }
                 lexer.nextToken();
-            }
-
-            if (lexer.token() == Token.NOT) {
+                stmt.setUpdateClause(parseUpdateClause());
+            } else if (lexer.token() == Token.NOT) {
+                if (notMatched) {
+                    throw new ParserException("TODO " + lexer.token());
+                }
                 lexer.nextToken();
-                insertFlag = true;
+                accept(Token.MATCHED);
+                stmt.setInsertClause(parseInsertClause());
             }
-        }
-
-        if (insertFlag) {
-            SQLMergeStatement.MergeInsertClause insertClause = new SQLMergeStatement.MergeInsertClause();
-
-            accept(Token.MATCHED);
-            accept(Token.THEN);
-            accept(Token.INSERT);
-
-            if (lexer.token() == Token.LPAREN) {
-                accept(Token.LPAREN);
-                exprParser.exprList(insertClause.getColumns(), insertClause);
-                accept(Token.RPAREN);
-            }
-            accept(Token.VALUES);
-            accept(Token.LPAREN);
-            exprParser.exprList(insertClause.getValues(), insertClause);
-            accept(Token.RPAREN);
-
-            if (lexer.token() == Token.WHERE) {
-                lexer.nextToken();
-                insertClause.setWhere(exprParser.expr());
-            }
-
-            stmt.setInsertClause(insertClause);
         }
 
         SQLErrorLoggingClause errorClause = parseErrorLoggingClause();
         stmt.setErrorLoggingClause(errorClause);
 
         return stmt;
+    }
+
+    public SQLMergeStatement.MergeInsertClause parseInsertClause() {
+        SQLMergeStatement.MergeInsertClause insertClause = new SQLMergeStatement.MergeInsertClause();
+
+        accept(Token.THEN);
+        accept(Token.INSERT);
+
+        if (lexer.token() == Token.LPAREN) {
+            accept(Token.LPAREN);
+            exprParser.exprList(insertClause.getColumns(), insertClause);
+            accept(Token.RPAREN);
+        }
+        accept(Token.VALUES);
+        accept(Token.LPAREN);
+        exprParser.exprList(insertClause.getValues(), insertClause);
+        accept(Token.RPAREN);
+
+        if (lexer.token() == Token.WHERE) {
+            lexer.nextToken();
+            insertClause.setWhere(exprParser.expr());
+        }
+
+        return insertClause;
+    }
+
+    private SQLMergeStatement.MergeUpdateClause parseUpdateClause() {
+        SQLMergeStatement.MergeUpdateClause updateClause = new SQLMergeStatement.MergeUpdateClause();
+        accept(Token.THEN);
+        accept(Token.UPDATE);
+        accept(Token.SET);
+
+        for (;;) {
+            SQLUpdateSetItem item = this.exprParser.parseUpdateSetItem();
+
+            updateClause.addItem(item);
+            item.setParent(updateClause);
+
+            if (lexer.token() == (Token.COMMA)) {
+                lexer.nextToken();
+                continue;
+            }
+
+            break;
+        }
+
+        if (lexer.token() == Token.WHERE) {
+            lexer.nextToken();
+            updateClause.setWhere(exprParser.expr());
+        }
+
+        if (lexer.token() == Token.DELETE) {
+            lexer.nextToken();
+            accept(Token.WHERE);
+            updateClause.setWhere(exprParser.expr());
+        }
+
+        return updateClause;
     }
     
     protected SQLErrorLoggingClause parseErrorLoggingClause() {
