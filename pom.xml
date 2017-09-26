@@ -10,13 +10,26 @@
  -->
 	<groupId>com.alibaba</groupId>
 	<artifactId>druid</artifactId>
-	<version>1.1.2-netease.1-SHAPSHOT</version>
+	<version>1.1.2-netease.1</version>
 
 	<packaging>jar</packaging>
 	<name>druid</name>
 	<description>An JDBC datasource implementation.</description>
 	<url>https://github.com/alibaba/druid</url>
 	<inceptionYear>2013</inceptionYear>
+
+	<distributionManagement>
+		<repository>
+			<id>repo</id>
+			<name>Netease Maven Repository</name>
+			<url>http://mvn.hz.netease.com/artifactory/libs-releases</url>
+		</repository>
+		<snapshotRepository>
+			<id>snapshots</id>
+			<name>Netease Maven Repository</name>
+			<url>http://mvn.hz.netease.com/artifactory/libs-snapshots</url>
+		</snapshotRepository>
+	</distributionManagement>
 
 	<properties>
 		<spring.version>4.2.5.RELEASE</spring.version>
