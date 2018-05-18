@@ -2553,11 +2553,13 @@ public class SQLStatementParser extends SQLParser {
                 matched = true;
                 lexer.nextToken();
                 stmt.setUpdateClause(parseUpdateClause());
+                stmt.setUpdateClauseFirst(true);
             } else if (lexer.token() == Token.NOT) {
                 lexer.nextToken();
                 accept(Token.MATCHED);
                 notMatched = true;
                 stmt.setInsertClause(parseInsertClause());
+                stmt.setUpdateClauseFirst(false);
             }
         }
 

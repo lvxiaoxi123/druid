@@ -36,6 +36,7 @@ public class SQLMergeStatement extends SQLStatementImpl {
     private MergeUpdateClause        updateClause;
     private MergeInsertClause        insertClause;
     private SQLErrorLoggingClause errorLoggingClause;
+    private boolean updateClauseFirst = false;
 
     public void accept0(SQLASTVisitor visitor) {
         if (visitor.visit(this)) {
@@ -114,6 +115,14 @@ public class SQLMergeStatement extends SQLStatementImpl {
 
     public List<SQLHint> getHints() {
         return hints;
+    }
+
+    public boolean isUpdateClauseFirst() {
+        return updateClauseFirst;
+    }
+
+    public void setUpdateClauseFirst(boolean updateClauseFirst) {
+        this.updateClauseFirst = updateClauseFirst;
     }
 
     public static class MergeUpdateClause extends SQLObjectImpl {
